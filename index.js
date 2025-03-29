@@ -2,34 +2,33 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 
-// Middleware ?? parse JSON (n?u c?n)
+// Th?m middleware ?? x? l? CORS
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://mrtannguyen19.github.io'); // Cho ph?p origin c?a GitHub Pages
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS'); // Cho ph?p ph??ng th?c GET v? OPTIONS
+  res.header('Access-Control-Allow-Headers', 'X-Redmine-API-Key, X-Target-URL'); // Cho ph?p c?c header c?n thi?t
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200); // Ph?n h?i nhanh cho preflight request
+  }
+  next();
+});
+
 app.use(express.json());
 
-// Endpoint proxy cho Redmine API
 app.get('/redmine-api/*', async (req, res) => {
   try {
-    // L?y URL Redmine t? header
     const targetUrl = req.headers['x-target-url'];
-    if (!targetUrl) {
-      return res.status(400).json({ error: 'Missing X-Target-URL header' });
-    }
-
-    // L?y API key t? header
+    if (!targetUrl) return res.status(400).json({ error: 'Missing X-Target-URL header' });
     const apiKey = req.headers['x-redmine-api-key'];
-    if (!apiKey) {
-      return res.status(400).json({ error: 'Missing X-Redmine-API-Key header' });
-    }
+    if (!apiKey) return res.status(400).json({ error: 'Missing X-Redmine-API-Key header' });
 
-    // T?o URL ??y ?? cho Redmine API
     const redmineUrl = `${targetUrl}${req.url.replace('/redmine-api', '')}`;
     console.log('Proxying request to:', redmineUrl);
 
-    // G?i y?u c?u t?i Redmine API
     const response = await axios.get(redmineUrl, {
       headers: { 'X-Redmine-API-Key': apiKey },
     });
 
-    // Tr? k?t qu? v? cho client
     res.json(response.data);
   } catch (error) {
     console.error('Proxy error:', error.message);
@@ -37,7 +36,6 @@ app.get('/redmine-api/*', async (req, res) => {
   }
 });
 
-// Ch?y server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Proxy server running on port ${PORT}`);
